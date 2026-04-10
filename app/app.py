@@ -55,11 +55,20 @@ def load_model():
     return model, meta
 
 
+DATASET_URL = (
+    "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d"
+    "/master/data/Telco-Customer-Churn.csv"
+)
+
 @st.cache_data
 def load_data():
-    if not os.path.exists(DATA_PATH):
-        return None
-    df = pd.read_csv(DATA_PATH)
+    if os.path.exists(DATA_PATH):
+        df = pd.read_csv(DATA_PATH)
+    else:
+        import requests
+        r = requests.get(DATASET_URL, timeout=30)
+        r.raise_for_status()
+        df = pd.read_csv(__import__("io").StringIO(r.text))
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df["TotalCharges"].fillna(df["TotalCharges"].median(), inplace=True)
     df["Churn_bin"] = (df["Churn"] == "Yes").astype(int)
