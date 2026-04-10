@@ -3,7 +3,6 @@ app.py — Streamlit dashboard: Telecom Customer Churn Prediction
 """
 
 import os
-import sys
 import warnings
 import joblib
 import pandas as pd
@@ -11,7 +10,6 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 warnings.filterwarnings("ignore")
 
@@ -21,6 +19,11 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "churn_model.pkl")
 META_PATH = os.path.join(BASE_DIR, "models", "model_meta.pkl")
 DATA_PATH = os.path.join(BASE_DIR, "data", "telco_churn.csv")
 
+DATASET_URL = (
+    "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d"
+    "/master/data/Telco-Customer-Churn.csv"
+)
+
 # ─── Page config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Churn Prediction · Telecom",
@@ -28,22 +31,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-# ─── Custom CSS ──────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-    .metric-card {
-        background: #f0f2f6;
-        border-radius: 10px;
-        padding: 16px 20px;
-        text-align: center;
-    }
-    .churn-high { color: #d62728; font-weight: bold; font-size: 2rem; }
-    .churn-low  { color: #2ca02c; font-weight: bold; font-size: 2rem; }
-    .section-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
-</style>
-""", unsafe_allow_html=True)
-
 
 # ─── Load artifacts ──────────────────────────────────────────────────────────
 @st.cache_resource
@@ -54,11 +41,6 @@ def load_model():
     meta = joblib.load(META_PATH)
     return model, meta
 
-
-DATASET_URL = (
-    "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d"
-    "/master/data/Telco-Customer-Churn.csv"
-)
 
 @st.cache_data
 def load_data():
@@ -85,39 +67,38 @@ with st.sidebar:
     st.caption("Portfolio · Santiago Martínez")
     st.divider()
     page = st.radio(
-        "Sección",
-        ["📊 Métricas del Modelo", "🔍 Feature Importance", "🎯 Simulador", "📈 Segmentación"],
+        "Section",
+        ["📊 Model Metrics", "🔍 Feature Importance", "🎯 Simulator", "📈 Segmentation"],
         label_visibility="collapsed",
     )
     st.divider()
     if meta:
-        st.caption(f"Modelo: **{meta['model_name']}**")
-        st.caption(f"Dataset: {meta['n_samples']:,} clientes")
+        st.caption(f"Model: **{meta['model_name']}**")
+        st.caption(f"Dataset: {meta['n_samples']:,} customers")
         st.caption(f"Churn rate: {meta['churn_rate']*100:.1f}%")
 
-# ─── Guard: modelo no entrenado ───────────────────────────────────────────────
+# ─── Guard: model not trained ────────────────────────────────────────────────
 if model is None:
     st.error(
-        "⚠️ Modelo no encontrado. Ejecutá primero:\n\n"
+        "Model not found. Please run:\n\n"
         "```bash\npython src/train.py\n```"
     )
     st.stop()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 1. MÉTRICAS DEL MODELO
+# 1. MODEL METRICS
 # ══════════════════════════════════════════════════════════════════════════════
-if page == "📊 Métricas del Modelo":
-    st.header("📊 Métricas del Modelo")
+if page == "📊 Model Metrics":
+    st.header("📊 Model Metrics")
     st.caption(
-        "Comparación de 3 modelos entrenados sobre el dataset IBM Telco Customer Churn. "
-        "Se selecciona el de mayor AUC-ROC."
+        "Comparison of 3 models trained on the IBM Telco Customer Churn dataset. "
+        "Best model selected by AUC-ROC."
     )
 
     best = meta["best_metrics"]
     all_metrics = meta["metrics"]
 
-    # KPIs del mejor modelo
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Accuracy", f"{best['accuracy']:.1%}")
@@ -128,16 +109,15 @@ if page == "📊 Métricas del Modelo":
     with col4:
         st.metric("F1 Score", f"{best['f1']:.1%}")
     with col5:
-        st.metric("AUC-ROC", f"{best['roc_auc']:.3f}", delta="↑ mejor modelo")
+        st.metric("AUC-ROC", f"{best['roc_auc']:.3f}", delta="best model")
 
     st.divider()
 
-    # Tabla comparativa
-    st.subheader("Comparación de modelos")
+    st.subheader("Model comparison")
     rows = []
     for name, m in all_metrics.items():
         rows.append({
-            "Modelo": f"{'★ ' if name == best['name'] else ''}{name}",
+            "Model": f"{'★ ' if name == best['name'] else ''}{name}",
             "Accuracy": f"{m['accuracy']:.1%}",
             "Precision": f"{m['precision']:.1%}",
             "Recall": f"{m['recall']:.1%}",
@@ -147,7 +127,6 @@ if page == "📊 Métricas del Modelo":
     comp_df = pd.DataFrame(rows)
     st.dataframe(comp_df, use_container_width=True, hide_index=True)
 
-    # Gráfico de barras comparativo
     fig = go.Figure()
     metric_names = ["accuracy", "precision", "recall", "f1", "roc_auc"]
     metric_labels = ["Accuracy", "Precision", "Recall", "F1", "AUC-ROC"]
@@ -166,16 +145,16 @@ if page == "📊 Métricas del Modelo":
     fig.update_layout(
         barmode="group",
         yaxis=dict(range=[0, 1.1], title="Score"),
-        title="Comparación de métricas por modelo",
+        title="Model metrics comparison",
         height=400,
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
     )
     st.plotly_chart(fig, use_container_width=True)
 
     st.info(
-        "💡 **Nota metodológica:** El modelo elegido balancea Recall alto (detectar churners reales) "
-        "con Precision razonable, priorizando AUC-ROC como métrica de selección. "
-        "En producción, el umbral de decisión se ajusta según el costo de falsos positivos/negativos."
+        "💡 **Methodology note:** The selected model balances high Recall (catching real churners) "
+        "with reasonable Precision, using AUC-ROC as the selection metric. "
+        "In production, the decision threshold is tuned based on the cost of false positives vs. false negatives."
     )
 
 
@@ -184,7 +163,7 @@ if page == "📊 Métricas del Modelo":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "🔍 Feature Importance":
     st.header("🔍 Feature Importance")
-    st.caption("Variables con mayor poder predictivo sobre la probabilidad de churn.")
+    st.caption("Variables with the highest predictive power for churn probability.")
 
     imp_df = meta["feature_importance"]
     top_n = st.slider("Top N features", 5, 30, 15)
@@ -197,15 +176,15 @@ elif page == "🔍 Feature Importance":
         orientation="h",
         color="importance",
         color_continuous_scale="Blues",
-        labels={"importance": "Importancia relativa", "feature": "Variable"},
-        title=f"Top {top_n} variables predictoras de churn",
+        labels={"importance": "Relative importance", "feature": "Feature"},
+        title=f"Top {top_n} churn predictors",
         height=max(400, top_n * 28),
     )
     fig.update_layout(coloraxis_showscale=False, yaxis=dict(tickfont=dict(size=11)))
     st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
-    st.subheader("Tabla completa")
+    st.subheader("Full table")
     st.dataframe(
         imp_df.assign(importance=imp_df["importance"].round(4)),
         use_container_width=True,
@@ -214,47 +193,47 @@ elif page == "🔍 Feature Importance":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. SIMULADOR
+# 3. SIMULATOR
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "🎯 Simulador":
-    st.header("🎯 Simulador de Probabilidad de Churn")
-    st.caption("Ingresá las características de un cliente para ver su probabilidad de darse de baja.")
+elif page == "🎯 Simulator":
+    st.header("🎯 Churn Probability Simulator")
+    st.caption("Enter a customer's characteristics to predict their churn probability.")
 
     with st.form("simulator_form"):
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.subheader("Perfil del cliente")
-            gender = st.selectbox("Género", ["Male", "Female"])
+            st.subheader("Customer profile")
+            gender = st.selectbox("Gender", ["Male", "Female"])
             senior = st.selectbox("Senior Citizen", ["No", "Yes"])
-            partner = st.selectbox("Tiene pareja", ["No", "Yes"])
-            dependents = st.selectbox("Tiene dependientes", ["No", "Yes"])
-            tenure = st.slider("Antigüedad (meses)", 0, 72, 12)
+            partner = st.selectbox("Has partner", ["No", "Yes"])
+            dependents = st.selectbox("Has dependents", ["No", "Yes"])
+            tenure = st.slider("Tenure (months)", 0, 72, 12)
 
         with col2:
-            st.subheader("Servicios contratados")
-            phone = st.selectbox("Servicio telefónico", ["Yes", "No"])
-            multiple_lines = st.selectbox("Múltiples líneas", ["No", "Yes", "No phone service"])
-            internet = st.selectbox("Servicio de Internet", ["DSL", "Fiber optic", "No"])
-            online_sec = st.selectbox("Seguridad online", ["No", "Yes", "No internet service"])
-            online_backup = st.selectbox("Backup online", ["No", "Yes", "No internet service"])
-            device_prot = st.selectbox("Protección de dispositivo", ["No", "Yes", "No internet service"])
-            tech_support = st.selectbox("Soporte técnico", ["No", "Yes", "No internet service"])
+            st.subheader("Contracted services")
+            phone = st.selectbox("Phone service", ["Yes", "No"])
+            multiple_lines = st.selectbox("Multiple lines", ["No", "Yes", "No phone service"])
+            internet = st.selectbox("Internet service", ["DSL", "Fiber optic", "No"])
+            online_sec = st.selectbox("Online security", ["No", "Yes", "No internet service"])
+            online_backup = st.selectbox("Online backup", ["No", "Yes", "No internet service"])
+            device_prot = st.selectbox("Device protection", ["No", "Yes", "No internet service"])
+            tech_support = st.selectbox("Tech support", ["No", "Yes", "No internet service"])
             streaming_tv = st.selectbox("Streaming TV", ["No", "Yes", "No internet service"])
-            streaming_movies = st.selectbox("Streaming películas", ["No", "Yes", "No internet service"])
+            streaming_movies = st.selectbox("Streaming movies", ["No", "Yes", "No internet service"])
 
         with col3:
-            st.subheader("Facturación y contrato")
-            contract = st.selectbox("Tipo de contrato", ["Month-to-month", "One year", "Two year"])
-            paperless = st.selectbox("Factura paperless", ["Yes", "No"])
+            st.subheader("Billing & contract")
+            contract = st.selectbox("Contract type", ["Month-to-month", "One year", "Two year"])
+            paperless = st.selectbox("Paperless billing", ["Yes", "No"])
             payment = st.selectbox(
-                "Método de pago",
+                "Payment method",
                 ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"],
             )
-            monthly = st.slider("Cargo mensual ($)", 18.0, 120.0, 65.0, step=0.5)
-            total = st.slider("Cargo total acumulado ($)", 0.0, 9000.0, float(monthly * tenure), step=10.0)
+            monthly = st.slider("Monthly charges ($)", 18.0, 120.0, 65.0, step=0.5)
+            total = st.slider("Total charges ($)", 0.0, 9000.0, float(monthly * tenure), step=10.0)
 
-        submitted = st.form_submit_button("Calcular probabilidad de churn", use_container_width=True)
+        submitted = st.form_submit_button("Calculate churn probability", use_container_width=True)
 
     if submitted:
         input_data = pd.DataFrame([{
@@ -305,59 +284,59 @@ elif page == "🎯 Simulador":
                         "value": 50,
                     },
                 },
-                title={"text": "Probabilidad de Churn"},
+                title={"text": "Churn Probability"},
             ))
             fig.update_layout(height=300)
             st.plotly_chart(fig, use_container_width=True)
 
         with col_detail:
             if pred == 1:
-                st.error(f"⚠️ **ALTO RIESGO DE CHURN** ({prob:.1%})")
-                st.markdown("**Factores de riesgo detectados:**")
+                st.error(f"⚠️ **HIGH CHURN RISK** ({prob:.1%})")
+                st.markdown("**Detected risk factors:**")
                 if contract == "Month-to-month":
-                    st.markdown("- Contrato mensual (sin fidelización)")
+                    st.markdown("- Month-to-month contract (no commitment)")
                 if internet == "Fiber optic":
-                    st.markdown("- Fiber optic (alta competencia)")
+                    st.markdown("- Fiber optic (high-competition segment)")
                 if tenure < 12:
-                    st.markdown("- Antigüedad baja (< 12 meses)")
+                    st.markdown("- Low tenure (< 12 months)")
                 if payment == "Electronic check":
-                    st.markdown("- Pago con cheque electrónico")
+                    st.markdown("- Electronic check payment")
             else:
-                st.success(f"✅ **BAJO RIESGO DE CHURN** ({prob:.1%})")
-                st.markdown("**Factores de retención:**")
+                st.success(f"✅ **LOW CHURN RISK** ({prob:.1%})")
+                st.markdown("**Retention factors:**")
                 if contract in ["One year", "Two year"]:
-                    st.markdown("- Contrato de largo plazo")
+                    st.markdown("- Long-term contract")
                 if tenure > 24:
-                    st.markdown("- Cliente fidelizado (>24 meses)")
+                    st.markdown("- Loyal customer (>24 months)")
                 if payment in ["Bank transfer (automatic)", "Credit card (automatic)"]:
-                    st.markdown("- Pago automático (menor fricción)")
+                    st.markdown("- Automatic payment (low friction)")
 
-            st.metric("Predicción", "CHURN" if pred == 1 else "RETIENE", delta=f"{abs(prob - meta['churn_rate']):.1%} vs promedio")
-            st.metric("Churn rate promedio del dataset", f"{meta['churn_rate']:.1%}")
+            st.metric("Prediction", "CHURN" if pred == 1 else "RETAIN", delta=f"{abs(prob - meta['churn_rate']):.1%} vs average")
+            st.metric("Dataset average churn rate", f"{meta['churn_rate']:.1%}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 4. SEGMENTACIÓN
+# 4. SEGMENTATION
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "📈 Segmentación":
-    st.header("📈 Segmentación por Variables Clave")
-    st.caption("Distribución de churn según diferentes segmentos del dataset.")
+elif page == "📈 Segmentation":
+    st.header("📈 Segmentation by Key Variables")
+    st.caption("Churn distribution across different customer segments.")
 
     if df is None:
-        st.warning("Dataset no encontrado. Ejecutá `python src/train.py` para descargarlo.")
+        st.warning("Dataset not found. Run `python src/train.py` to download it.")
         st.stop()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Contrato", "Antigüedad", "Servicios", "Facturación"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Contract", "Tenure", "Services", "Billing"])
 
     with tab1:
         col1, col2 = st.columns(2)
         with col1:
             churn_contract = df.groupby("Contract")["Churn_bin"].mean().reset_index()
-            churn_contract.columns = ["Contrato", "Churn Rate"]
+            churn_contract.columns = ["Contract", "Churn Rate"]
             fig = px.bar(
-                churn_contract, x="Contrato", y="Churn Rate",
+                churn_contract, x="Contract", y="Churn Rate",
                 color="Churn Rate", color_continuous_scale="RdYlGn_r",
-                title="Churn rate por tipo de contrato",
+                title="Churn rate by contract type",
                 text=churn_contract["Churn Rate"].apply(lambda x: f"{x:.1%}"),
             )
             fig.update_layout(coloraxis_showscale=False, yaxis=dict(tickformat=".0%"))
@@ -366,12 +345,12 @@ elif page == "📈 Segmentación":
         with col2:
             fig2 = px.histogram(
                 df, x="Contract", color="Churn",
-                barmode="group", title="Distribución de clientes por contrato",
+                barmode="group", title="Customer distribution by contract type",
                 color_discrete_map={"Yes": "#d62728", "No": "#2ca02c"},
             )
             st.plotly_chart(fig2, use_container_width=True)
 
-        st.info("📌 Los clientes **Month-to-month** tienen un churn rate ~3x más alto que los de contrato anual.")
+        st.info("📌 **Month-to-month** customers churn ~3x more than annual contract customers.")
 
     with tab2:
         df["tenure_group"] = pd.cut(
@@ -380,27 +359,27 @@ elif page == "📈 Segmentación":
             labels=["0-6m", "6-12m", "12-24m", "24-48m", "48-72m"],
         )
         churn_tenure = df.groupby("tenure_group", observed=True)["Churn_bin"].mean().reset_index()
-        churn_tenure.columns = ["Antigüedad", "Churn Rate"]
+        churn_tenure.columns = ["Tenure", "Churn Rate"]
 
         fig = px.line(
-            churn_tenure, x="Antigüedad", y="Churn Rate",
-            markers=True, title="Churn rate por antigüedad del cliente",
-            labels={"Churn Rate": "Tasa de Churn"},
+            churn_tenure, x="Tenure", y="Churn Rate",
+            markers=True, title="Churn rate by customer tenure",
+            labels={"Churn Rate": "Churn Rate"},
         )
         fig.add_hline(
             y=meta["churn_rate"], line_dash="dash",
-            annotation_text=f"Promedio ({meta['churn_rate']:.1%})", line_color="gray",
+            annotation_text=f"Average ({meta['churn_rate']:.1%})", line_color="gray",
         )
         fig.update_yaxes(tickformat=".0%")
         st.plotly_chart(fig, use_container_width=True)
-        st.info("📌 El churn se concentra en los primeros 12 meses — crítico para estrategias de onboarding.")
+        st.info("📌 Churn is concentrated in the first 12 months — critical window for onboarding strategies.")
 
     with tab3:
         col1, col2 = st.columns(2)
         service_cols = {
-            "InternetService": "Internet",
-            "TechSupport": "Soporte Técnico",
-            "OnlineSecurity": "Seg. Online",
+            "InternetService": "Internet Service",
+            "TechSupport": "Tech Support",
+            "OnlineSecurity": "Online Security",
             "StreamingTV": "Streaming TV",
         }
         for i, (col, label) in enumerate(service_cols.items()):
@@ -409,7 +388,7 @@ elif page == "📈 Segmentación":
                 ch.columns = [label, "Churn Rate"]
                 fig = px.bar(
                     ch, x=label, y="Churn Rate",
-                    title=f"Churn rate por {label}",
+                    title=f"Churn rate by {label}",
                     color="Churn Rate", color_continuous_scale="RdYlGn_r",
                     text=ch["Churn Rate"].apply(lambda x: f"{x:.1%}"),
                 )
@@ -423,31 +402,31 @@ elif page == "📈 Segmentación":
                 df, x="Churn", y="MonthlyCharges",
                 color="Churn",
                 color_discrete_map={"Yes": "#d62728", "No": "#2ca02c"},
-                title="Cargo mensual: Churn vs Retención",
-                labels={"MonthlyCharges": "Cargo Mensual ($)"},
+                title="Monthly charges: Churn vs Retained",
+                labels={"MonthlyCharges": "Monthly Charges ($)"},
             )
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             churn_payment = df.groupby("PaymentMethod")["Churn_bin"].mean().reset_index()
-            churn_payment.columns = ["Método de Pago", "Churn Rate"]
-            churn_payment["Método de Pago"] = churn_payment["Método de Pago"].str.replace(" (automatic)", " (auto)", regex=False)
+            churn_payment.columns = ["Payment Method", "Churn Rate"]
+            churn_payment["Payment Method"] = churn_payment["Payment Method"].str.replace(" (automatic)", " (auto)", regex=False)
             fig = px.bar(
                 churn_payment.sort_values("Churn Rate", ascending=True),
-                x="Churn Rate", y="Método de Pago",
-                orientation="h", title="Churn rate por método de pago",
+                x="Churn Rate", y="Payment Method",
+                orientation="h", title="Churn rate by payment method",
                 color="Churn Rate", color_continuous_scale="RdYlGn_r",
                 text=churn_payment.sort_values("Churn Rate")["Churn Rate"].apply(lambda x: f"{x:.1%}"),
             )
             fig.update_layout(coloraxis_showscale=False, xaxis=dict(tickformat=".0%"))
             st.plotly_chart(fig, use_container_width=True)
 
-        st.info("📌 Fiber optic + Electronic check = combo de mayor riesgo. Clientes con altos cargos mensuales churnan más.")
+        st.info("📌 Fiber optic + Electronic check = highest risk combo. High monthly charges correlate with churn.")
 
 
 # ─── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "Proyecto de portfolio · [Santiago Martínez](https://santimuru.github.io) · "
+    "Portfolio project · [Santiago Martínez](https://santimuru.github.io) · "
     "Dataset: [IBM Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)"
 )
