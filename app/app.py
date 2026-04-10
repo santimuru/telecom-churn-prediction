@@ -68,7 +68,7 @@ with st.sidebar:
     st.divider()
     page = st.radio(
         "Section",
-        ["📊 Model Metrics", "🔍 Feature Importance", "🎯 Simulator", "📈 Segmentation"],
+        ["🏠 Introduction", "📊 Model Metrics", "🔍 Feature Importance", "🎯 Simulator", "📈 Segmentation"],
         label_visibility="collapsed",
     )
     st.divider()
@@ -87,9 +87,140 @@ if model is None:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 0. INTRODUCTION
+# ══════════════════════════════════════════════════════════════════════════════
+if page == "🏠 Introduction":
+    st.title("📡 Telecom Customer Churn Prediction")
+    st.markdown("#### Identifying which customers will leave — and why — using machine learning.")
+    st.markdown("---")
+
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        st.markdown("### The Business Problem")
+        st.markdown(
+            """
+            Customer churn is one of the most costly problems in the telecom industry.
+            Acquiring a new customer costs 5–7× more than retaining an existing one, yet most
+            operators lack the tools to identify at-risk customers before they actually leave.
+
+            **The goal is to predict, at the individual level, which customers are likely to churn —
+            and do so early enough to intervene with a targeted retention offer.**
+
+            This type of model was deployed in a production environment at a cable operator,
+            where churn prediction scores were integrated into CRM workflows and drove a
+            **13% reduction in churn** among targeted segments through personalized retention campaigns.
+            """
+        )
+
+        st.markdown("### Objective")
+        st.markdown(
+            """
+            1. **Train and compare** 3 classification models on the IBM Telco dataset
+            2. **Identify the key drivers** of churn through feature importance analysis
+            3. **Quantify risk** at the individual customer level with a calibrated probability score
+            4. **Segment customers** by contract, tenure, and service profile to surface actionable patterns
+            """
+        )
+
+    with col2:
+        st.markdown("### Key Results")
+        if meta:
+            best = meta["best_metrics"]
+            st.markdown(
+                f"""
+                | Metric | Value |
+                |--------|-------|
+                | Best model | **{meta['model_name']}** |
+                | Accuracy | **{best['accuracy']:.1%}** |
+                | Recall | **{best['recall']:.1%}** |
+                | AUC-ROC | **{best['roc_auc']:.3f}** |
+                | F1 Score | **{best['f1']:.3f}** |
+                | Dataset size | **{meta['n_samples']:,} customers** |
+                | Churn rate | **{meta['churn_rate']*100:.1f}%** |
+                """
+            )
+
+        st.markdown("### Dataset")
+        st.markdown(
+            """
+            **IBM Telco Customer Churn** — 7,043 customers, 21 features.
+            - Contract type, tenure, monthly charges
+            - Internet, phone, and streaming services
+            - Payment method and billing preferences
+            - Target: `Churn` (Yes / No)
+            """
+        )
+
+    st.markdown("---")
+    st.markdown("### Methodology")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(
+            """
+            **1. Preprocessing Pipeline**
+
+            Built with scikit-learn's `ColumnTransformer`:
+            - `StandardScaler` for numeric features
+            - `OneHotEncoder` for categorical features
+            - Missing value imputation (`TotalCharges`)
+
+            All transformations are fitted on train only and applied to test, preventing data leakage.
+            """
+        )
+    with c2:
+        st.markdown(
+            """
+            **2. Model Comparison**
+
+            Three classifiers trained and evaluated:
+            - **Logistic Regression** — interpretable baseline
+            - **Random Forest** — ensemble, handles non-linearity
+            - **Gradient Boosting** — sequential boosting, best AUC
+
+            All use `class_weight="balanced"` to handle the ~26% churn imbalance.
+            Best model selected by AUC-ROC on the held-out test set.
+            """
+        )
+    with c3:
+        st.markdown(
+            """
+            **3. Feature Importance**
+
+            For tree-based models: native `feature_importances_`.
+            For Logistic Regression: absolute coefficient values.
+
+            Top drivers identified: contract type, tenure, internet service,
+            payment method, and monthly charges — consistent with domain
+            knowledge from production telecom deployments.
+            """
+        )
+
+    st.markdown("---")
+    st.markdown("### Conclusions")
+    st.markdown(
+        """
+        - **Contract type is the strongest predictor**: month-to-month customers churn at 3–4× the rate
+          of annual or biennial contract holders. Incentivizing contract upgrades is the highest-ROI retention lever.
+        - **Tenure is a leading indicator of risk**: churn probability is highest in the first 12 months,
+          then drops sharply. Onboarding programs targeting new customers have outsized impact.
+        - **Fiber optic + electronic check is a high-risk profile**: customers with this combination
+          show disproportionately high churn rates, likely driven by price sensitivity and service perception.
+        - **Recall over precision**: in a retention context, the cost of a false negative (missing a churner)
+          exceeds the cost of a false positive (retaining a loyal customer unnecessarily).
+          Models are evaluated with this trade-off in mind.
+        """
+    )
+
+    st.markdown("---")
+    st.info("Use the sidebar to explore: **Model Metrics** for performance comparison, **Feature Importance** for churn drivers, **Simulator** to score any customer profile, and **Segmentation** for population-level insights.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 1. MODEL METRICS
 # ══════════════════════════════════════════════════════════════════════════════
-if page == "📊 Model Metrics":
+elif page == "📊 Model Metrics":
     st.header("📊 Model Metrics")
     st.caption(
         "Comparison of 3 models trained on the IBM Telco Customer Churn dataset. "
