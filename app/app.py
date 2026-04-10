@@ -390,60 +390,129 @@ elif page == "🎯 Simulator":
         }])
 
         prob = model.predict_proba(input_data)[0][1]
-        pred = model.predict(input_data)[0]
+
+        # Risk classification
+        if prob < 0.30:
+            risk_level, risk_color, risk_bg, risk_emoji = "LOW", "#2ca02c", "#eafaf1", "✅"
+        elif prob < 0.60:
+            risk_level, risk_color, risk_bg, risk_emoji = "MEDIUM", "#e67e22", "#fef9e7", "⚠️"
+        else:
+            risk_level, risk_color, risk_bg, risk_emoji = "HIGH", "#d62728", "#fdecea", "🔴"
 
         st.divider()
-        col_gauge, col_detail = st.columns([1, 1])
+        col_gauge, col_mid, col_right = st.columns([1.1, 1, 1])
 
         with col_gauge:
             fig = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
+                mode="gauge+number",
                 value=prob * 100,
-                number={"suffix": "%", "font": {"size": 48}},
-                delta={"reference": meta["churn_rate"] * 100, "suffix": "% (base rate)"},
+                number={"suffix": "%", "font": {"size": 34}, "valueformat": ".1f"},
                 gauge={
-                    "axis": {"range": [0, 100]},
-                    "bar": {"color": "#d62728" if prob > 0.5 else "#2ca02c"},
+                    "axis": {"range": [0, 100], "tickfont": {"size": 10}, "nticks": 6},
+                    "bar": {"color": risk_color, "thickness": 0.22},
+                    "bgcolor": "white",
+                    "borderwidth": 0,
                     "steps": [
-                        {"range": [0, 30], "color": "#d4edda"},
-                        {"range": [30, 60], "color": "#fff3cd"},
-                        {"range": [60, 100], "color": "#f8d7da"},
+                        {"range": [0, 30],  "color": "#eafaf1"},
+                        {"range": [30, 60], "color": "#fef9e7"},
+                        {"range": [60, 100],"color": "#fdecea"},
                     ],
                     "threshold": {
-                        "line": {"color": "black", "width": 4},
+                        "line": {"color": "rgba(0,0,0,0.25)", "width": 2},
                         "thickness": 0.75,
-                        "value": 50,
+                        "value": meta["churn_rate"] * 100,
                     },
                 },
-                title={"text": "Churn Probability"},
+                title={"text": "Churn Probability", "font": {"size": 13, "color": "#555"}},
             ))
-            fig.update_layout(height=300)
+            fig.update_layout(height=250, margin=dict(t=40, b=0, l=10, r=10))
             st.plotly_chart(fig, use_container_width=True)
+            st.caption(f"▲ Threshold marker = population avg ({meta['churn_rate']:.1%})")
 
-        with col_detail:
-            if pred == 1:
-                st.error(f"⚠️ **HIGH CHURN RISK** ({prob:.1%})")
-                st.markdown("**Detected risk factors:**")
-                if contract == "Month-to-month":
-                    st.markdown("- Month-to-month contract (no commitment)")
-                if internet == "Fiber optic":
-                    st.markdown("- Fiber optic (high-competition segment)")
-                if tenure < 12:
-                    st.markdown("- Low tenure (< 12 months)")
-                if payment == "Electronic check":
-                    st.markdown("- Electronic check payment")
+        with col_mid:
+            st.markdown(
+                f"""<div style="background:{risk_bg}; border-left:4px solid {risk_color};
+                border-radius:8px; padding:0.9rem 1.1rem; margin-bottom:0.85rem;">
+                <div style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em;
+                color:{risk_color}; font-weight:700; margin-bottom:0.2rem;">Risk level</div>
+                <div style="font-size:1.55rem; font-weight:800; color:{risk_color}; line-height:1;">
+                {risk_emoji} {risk_level}</div></div>""",
+                unsafe_allow_html=True,
+            )
+            delta = prob - meta["churn_rate"]
+            st.metric(
+                "vs. population average",
+                f"{prob:.1%}",
+                delta=f"{delta:+.1%}",
+                delta_color="inverse",
+                help="Positive delta = higher risk than average customer",
+            )
+            st.metric("Population churn rate", f"{meta['churn_rate']:.1%}")
+
+            if prob > 0.70:
+                st.caption("📊 Top-tier risk — immediate action needed")
+            elif prob > 0.50:
+                st.caption("📊 Above-average risk segment")
+            elif prob > 0.30:
+                st.caption("📊 Moderate risk — monitor closely")
             else:
-                st.success(f"✅ **LOW CHURN RISK** ({prob:.1%})")
-                st.markdown("**Retention factors:**")
-                if contract in ["One year", "Two year"]:
-                    st.markdown("- Long-term contract")
-                if tenure > 24:
-                    st.markdown("- Loyal customer (>24 months)")
-                if payment in ["Bank transfer (automatic)", "Credit card (automatic)"]:
-                    st.markdown("- Automatic payment (low friction)")
+                st.caption("📊 Below-average churn risk")
 
-            st.metric("Prediction", "CHURN" if pred == 1 else "RETAIN", delta=f"{abs(prob - meta['churn_rate']):.1%} vs average")
-            st.metric("Dataset average churn rate", f"{meta['churn_rate']:.1%}")
+        with col_right:
+            st.markdown("**Signals detected**")
+            risk_factors, positive_factors = [], []
+
+            if contract == "Month-to-month":
+                risk_factors.append("Month-to-month contract")
+            if internet == "Fiber optic":
+                risk_factors.append("Fiber optic service")
+            if tenure < 12:
+                risk_factors.append(f"Low tenure ({tenure} mo.)")
+            if payment == "Electronic check":
+                risk_factors.append("Electronic check")
+            if monthly > 70:
+                risk_factors.append(f"High charges (${monthly:.0f}/mo)")
+            if online_sec == "No" and internet != "No":
+                risk_factors.append("No online security")
+            if senior == "Yes":
+                risk_factors.append("Senior citizen")
+
+            if contract in ["One year", "Two year"]:
+                positive_factors.append("Long-term contract")
+            if tenure > 24:
+                positive_factors.append(f"Loyal customer ({tenure} mo.)")
+            if payment in ["Bank transfer (automatic)", "Credit card (automatic)"]:
+                positive_factors.append("Automatic payment")
+            if tech_support == "Yes":
+                positive_factors.append("Tech support subscriber")
+            if partner == "Yes":
+                positive_factors.append("Has partner")
+
+            for f in risk_factors:
+                st.markdown(f"🔴 {f}")
+            for f in positive_factors:
+                st.markdown(f"🟢 {f}")
+            if not risk_factors and not positive_factors:
+                st.markdown("No significant signals detected.")
+
+        # Recommended action
+        st.divider()
+        st.markdown("**Recommended action**")
+        if risk_level == "HIGH":
+            st.error(
+                "**Immediate intervention recommended.** Prioritize for retention campaign: "
+                "offer a contract upgrade or loyalty discount. Target before next billing cycle."
+            )
+        elif risk_level == "MEDIUM":
+            st.warning(
+                "**Monitor this customer.** Consider a proactive check-in or a soft retention offer. "
+                "Watch for changes in usage or payment behavior."
+            )
+        else:
+            st.success(
+                "**Customer appears stable.** No immediate action required. "
+                "Good candidate for upsell or referral programs."
+            )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
