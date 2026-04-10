@@ -1,7 +1,7 @@
 # Telecom Customer Churn Prediction
 
 > Predicting which telecom customers will churn — and why — using machine learning.
-> Live demo: [streamlit app link here]
+> **Live demo:** [telecom-churn-prediction-santimuru.streamlit.app](https://telecom-churn-prediction-santimuru.streamlit.app)
 
 ---
 
