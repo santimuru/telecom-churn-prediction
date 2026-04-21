@@ -20,12 +20,12 @@ In a real-world deployment at a cable/telecom company, I applied similar models 
 
 ## Live Dashboard
 
-| Section | What you'll find |
-|---|---|
-| 📊 Model Metrics | Accuracy, Precision, Recall, F1, AUC-ROC — with model comparison |
-| 🔍 Feature Importance | Which variables drive churn predictions most |
-| 🎯 Simulator | Enter any customer's characteristics → get churn probability |
-| 📈 Segmentation | Churn breakdown by contract, tenure, services, billing |
+| Section               | What you'll find                                                 |
+| --------------------- | ---------------------------------------------------------------- |
+| 📊 Model Metrics      | Accuracy, Precision, Recall, F1, AUC-ROC — with model comparison |
+| 🔍 Feature Importance | Which variables drive churn predictions most                     |
+| 🎯 Simulator          | Enter any customer's characteristics → get churn probability     |
+| 📈 Segmentation       | Churn breakdown by contract, tenure, services, billing           |
 
 ---
 
@@ -97,6 +97,7 @@ python src/train.py
 ```
 
 This will:
+
 - Download the IBM Telco dataset (~500KB)
 - Train 3 models and compare them
 - Save the best model to `models/`
@@ -111,15 +112,16 @@ streamlit run app/app.py
 
 ## Key Results
 
-| Model | Accuracy | Recall | F1 | AUC-ROC |
-|---|---|---|---|---|
-| Logistic Regression | ~80% | ~76% | ~62% | ~0.84 |
-| Random Forest | ~79% | ~80% | ~62% | ~0.83 |
-| Gradient Boosting | ~81% | ~74% | ~63% | ~0.85 |
+| Model               | Accuracy | Recall | F1   | AUC-ROC |
+| ------------------- | -------- | ------ | ---- | ------- |
+| Logistic Regression | ~80%     | ~76%   | ~62% | ~0.84   |
+| Random Forest       | ~79%     | ~80%   | ~62% | ~0.83   |
+| Gradient Boosting   | ~81%     | ~74%   | ~63% | ~0.85   |
 
 > Actual values depend on the run — see the dashboard for live metrics.
 
 **Top churn predictors:**
+
 - Contract type (month-to-month = high risk)
 - Tenure (new customers churn more)
 - Internet service type (Fiber optic)
